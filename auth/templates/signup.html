@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - Student Management System</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px;}
+        .container{background:white;border-radius:10px;width:100%;max-width:450px;padding:40px;box-shadow:0 10px 25px rgba(0,0,0,0.1);}
+        h1{text-align:center;margin-bottom:30px;color:#333;}
+        input{width:100%;padding:12px;margin-bottom:15px;border:1px solid #ddd;border-radius:5px;font-size:14px;}
+        input:focus{outline:none;border-color:#667eea;}
+        button{width:100%;padding:12px;background:#667eea;color:white;border:none;border-radius:5px;cursor:pointer;font-size:16px;}
+        button:disabled{background:#ccc;cursor:not-allowed;}
+        .message{padding:10px;margin-bottom:20px;border-radius:5px;display:none;}
+        .message.error{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;}
+        .message.success{background:#d4edda;color:#155724;border:1px solid #c3e6cb;}
+        .links{text-align:center;margin-top:20px;}
+        .links a{color:#667eea;text-decoration:none;cursor:pointer;}
+        .links a:hover{text-decoration:underline;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Create Account</h1>
+        <div id="message" class="message"></div>
+        
+        <form id="signupForm">
+            <input type="text" id="userName" placeholder="Username" required autocomplete="off">
+            <input type="email" id="email" placeholder="Email" required autocomplete="off">
+            <input type="password" id="password" placeholder="Password" required autocomplete="new-password">
+            <button type="submit" id="signupBtn">Sign Up</button>
+        </form>
+        
+        <div class="links">
+            <a onclick="window.location.href='http://127.0.0.1:8000/api/users/login-page/'">Already have an account? Login</a>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'http://127.0.0.1:8000';
+        const FRONTEND_URL = 'http://127.0.0.1:8000';
+        
+        document.getElementById('signupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const userName = document.getElementById('userName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            
+            if(!userName || !email || !password) {
+                showMessage('Please fill all fields', 'error');
+                return;
+            }
+            
+            if(password.length < 4) {
+                showMessage('Password must be at least 4 characters', 'error');
+                return;
+            }
+            
+            const btn = document.getElementById('signupBtn');
+            btn.disabled = true;
+            btn.innerHTML = 'Creating account...';
+            
+            try {
+                console.log('Sending signup request...');
+                
+                const response = await fetch(`${BACKEND_URL}/api/users/signup/`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({userName, email, password})
+                });
+                
+                const data = await response.json();
+                console.log('Response:', data);
+                
+                if(response.ok) {
+                    localStorage.setItem('pendingUserName', userName);
+                    localStorage.setItem('pendingEmail', email);
+                    
+                    showMessage('✅ Signup successful! Redirecting to OTP verification...', 'success');
+                    
+                    setTimeout(() => {
+                        window.location.href = `${FRONTEND_URL}/api/users/verify-otp-page/`;
+                    }, 1500);
+                } else {
+                    let errorMsg = data.error || 'Signup failed';
+                    if(data.userName) errorMsg = 'Username already exists';
+                    if(data.email) errorMsg = 'Email already exists';
+                    
+                    showMessage(errorMsg, 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Sign Up';
+                }
+            } catch(error) {
+                console.error('Error:', error);
+                showMessage('❌ Cannot connect to server. Make sure Django is running on port 8000', 'error');
+                btn.disabled = false;
+                btn.innerHTML = 'Sign Up';
+            }
+        });
+        
+        function showMessage(msg, type) {
+            const msgDiv = document.getElementById('message');
+            msgDiv.textContent = msg;
+            msgDiv.className = `message ${type}`;
+            msgDiv.style.display = 'block';
+            setTimeout(() => {
+                msgDiv.style.display = 'none';
+            }, 4000);
+        }
+    </script>
+</body>
+</html>

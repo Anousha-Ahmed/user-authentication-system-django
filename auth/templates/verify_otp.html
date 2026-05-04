@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP - Student Management System</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px;}
+        .container{background:white;border-radius:10px;width:100%;max-width:400px;padding:40px;box-shadow:0 10px 25px rgba(0,0,0,0.1);}
+        h1{text-align:center;margin-bottom:10px;color:#333;}
+        p{text-align:center;margin-bottom:30px;color:#666;}
+        input{width:100%;padding:12px;margin-bottom:20px;border:1px solid #ddd;border-radius:5px;text-align:center;font-size:18px;letter-spacing:5px;}
+        input:focus{outline:none;border-color:#667eea;}
+        button{width:100%;padding:12px;margin-bottom:10px;border:none;border-radius:5px;cursor:pointer;font-size:16px;transition:all 0.3s;}
+        button:disabled{opacity:0.6;cursor:not-allowed;}
+        .verify-btn{background:#667eea;color:white;}
+        .verify-btn:hover{background:#5a67d8;}
+        .resend-btn{background:#6c757d;color:white;}
+        .resend-btn:hover{background:#5a6268;}
+        .message{padding:10px;margin-bottom:20px;border-radius:5px;display:none;}
+        .message.error{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;}
+        .message.success{background:#d4edda;color:#155724;border:1px solid #c3e6cb;}
+        .info{background:#e7f3ff;padding:15px;margin-bottom:20px;border-radius:5px;text-align:center;border-left:4px solid #667eea;}
+        .info.error{background:#f8d7da;border-left-color:#dc3545;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Verify OTP</h1>
+        <p>Enter 6-digit OTP sent to your email</p>
+        <div id="message" class="message"></div>
+        <div class="info" id="userInfo">Loading...</div>
+        <input type="text" id="otp" maxlength="6" placeholder="Enter OTP" autocomplete="off">
+        <button class="verify-btn" onclick="verifyOTP()">Verify OTP</button>
+        <button class="resend-btn" onclick="resendOTP()">Resend OTP</button>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'http://127.0.0.1:8000';
+        
+        // Get from localStorage
+        let userName = localStorage.getItem('pendingUserName');
+        let email = localStorage.getItem('pendingEmail');
+        
+        console.log('LocalStorage data:', {userName, email});
+        
+        const userInfoDiv = document.getElementById('userInfo');
+        
+        if(!userName || userName === 'null') {
+            userInfoDiv.innerHTML = '❌ No user data found! <a href="#" onclick="window.location.href=\'/api/users/signup-page/\'">Click here to sign up first</a>';
+            userInfoDiv.classList.add('error');
+        } else {
+            userInfoDiv.innerHTML = `✅ Verifying OTP for: <strong>${userName}</strong><br><small style="color:#666;">Email: ${email || 'Not available'}</small>`;
+        }
+        
+        async function verifyOTP() {
+            const otp = document.getElementById('otp').value;
+            userName = localStorage.getItem('pendingUserName');
+            
+            if(!userName || userName === 'null') {
+                showMessage('No user data! Please sign up again.', 'error');
+                setTimeout(() => {
+                    window.location.href = '/api/users/signup-page/';
+                }, 1500);
+                return;
+            }
+            
+            if(!otp || otp.length !== 6) {
+                showMessage('Please enter valid 6-digit OTP', 'error');
+                return;
+            }
+            
+            const verifyBtn = document.querySelector('.verify-btn');
+            verifyBtn.disabled = true;
+            verifyBtn.innerHTML = 'Verifying...';
+            
+            try {
+                console.log('Verifying OTP for:', userName, 'OTP:', otp);
+                
+                const response = await fetch(`${BACKEND_URL}/api/users/verify-otp/`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({userName, otp})
+                });
+                
+                const data = await response.json();
+                console.log('Verification response:', data);
+                
+                if(response.ok) {
+                    showMessage('✅ OTP verified successfully! Redirecting to login...', 'success');
+                    
+                    // Clear localStorage
+                    localStorage.removeItem('pendingUserName');
+                    localStorage.removeItem('pendingEmail');
+                    
+                    setTimeout(() => {
+                        window.location.href = '/api/users/login-page/';
+                    }, 1500);
+                } else {
+                    showMessage(data.error || 'Invalid OTP. Please try again.', 'error');
+                    verifyBtn.disabled = false;
+                    verifyBtn.innerHTML = 'Verify OTP';
+                }
+            } catch(error) {
+                console.error('Error:', error);
+                showMessage('Cannot connect to server. Make sure Django is running on port 8000', 'error');
+                verifyBtn.disabled = false;
+                verifyBtn.innerHTML = 'Verify OTP';
+            }
+        }
+        
+        async function resendOTP() {
+            userName = localStorage.getItem('pendingUserName');
+            
+            if(!userName || userName === 'null') {
+                showMessage('No user data! Please sign up again.', 'error');
+                return;
+            }
+            
+            const resendBtn = document.querySelector('.resend-btn');
+            resendBtn.disabled = true;
+            resendBtn.innerHTML = 'Sending...';
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/users/resend-otp/`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({userName})
+                });
+                
+                const data = await response.json();
+                
+                if(response.ok) {
+                    showMessage('New OTP sent! Check Django terminal for OTP.', 'success');
+                } else {
+                    showMessage(data.error || 'Failed to resend OTP', 'error');
+                }
+            } catch(error) {
+                showMessage('Error connecting to server', 'error');
+            } finally {
+                setTimeout(() => {
+                    resendBtn.disabled = false;
+                    resendBtn.innerHTML = 'Resend OTP';
+                }, 3000);
+            }
+        }
+        
+        function showMessage(msg, type) {
+            const msgDiv = document.getElementById('message');
+            msgDiv.textContent = msg;
+            msgDiv.className = `message ${type}`;
+            msgDiv.style.display = 'block';
+            setTimeout(() => {
+                msgDiv.style.display = 'none';
+            }, 4000);
+        }
+    </script>
+</body>
+</html>
