@@ -1,15 +1,18 @@
 """
-Django settings for auth project - COMPLETE FIXED VERSION
+Django settings for auth project - SECURE VERSION with .env
 """
 
 from pathlib import Path
 import os
+from decouple import config  # pip install python-decouple
+# OR use: from dotenv import load_dotenv; load_dotenv()
+# OR use: import os; from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-f3o3&e4ouwo7+%yzf!u%l-i2$g-wwrj8woyj#(_z%^xbx3^pca'
-
-DEBUG = True
+# ✅ LOAD FROM ENVIRONMENT VARIABLES
+SECRET_KEY = config('SECRET_KEY')  # Or: os.environ.get('SECRET_KEY')
+DEBUG = config('DEBUG', default=False, cast=bool)  # cast to boolean
 
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 
@@ -63,14 +66,17 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'auth.wsgi.application'
 
-# EMAIL CONFIGURATION
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'      
-EMAIL_PORT = 587                    
-EMAIL_USE_TLS = True               
-EMAIL_HOST_USER = 'anoushaashfaque@gmail.com'  
-EMAIL_HOST_PASSWORD = 'vowg pfdo mdlr oyhn' 
-DEFAULT_FROM_EMAIL = 'anoushaashfaque@gmail.com'
+# ✅ EMAIL CONFIGURATION - LOAD FROM .env
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # For development
+# For production, change to:
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 
 DATABASES = {
     'default': {
@@ -100,9 +106,9 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = 'static/'
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# CORS Settings (these are fine to keep here)
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5500",
     "http://localhost:5500",
@@ -115,16 +121,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
-
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
-
+CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
 CORS_ALLOW_HEADERS = ['*']
 CORS_ALLOW_ALL_ORIGINS = True  # Only for development!
 CORS_ORIGIN_ALLOW_ALL = True
