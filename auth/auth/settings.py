@@ -4,15 +4,12 @@ Django settings for auth project - SECURE VERSION with .env
 
 from pathlib import Path
 import os
-from decouple import config  # pip install python-decouple
-# OR use: from dotenv import load_dotenv; load_dotenv()
-# OR use: import os; from pathlib import Path
+from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ✅ LOAD FROM ENVIRONMENT VARIABLES
-SECRET_KEY = config('SECRET_KEY')  # Or: os.environ.get('SECRET_KEY')
-DEBUG = config('DEBUG', default=False, cast=bool)  # cast to boolean
+SECRET_KEY = config('SECRET_KEY')  
+DEBUG = config('DEBUG', default=False, cast=bool) 
 
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 

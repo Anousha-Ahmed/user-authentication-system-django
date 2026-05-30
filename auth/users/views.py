@@ -6,6 +6,7 @@ from .models import SignUp, StudentDetails
 from .serializers import SignUpSerializer, LoginSerializer, StudentDetailsSerializer
 from django.core.mail import send_mail
 from django.conf import settings
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import random
 
 def generate_otp():
@@ -32,9 +33,51 @@ class StudentDetailsView(APIView):
             except StudentDetails.DoesNotExist:
                 return Response({"error": "Student not found"}, status=404)
         else:
-            students = StudentDetails.objects.all()
-            serializer = StudentDetailsSerializer(students, many=True)
-            return Response(serializer.data)
+            # Get pagination parameters from request
+            page_number = request.query_params.get('page', 1)
+            page_size = request.query_params.get('page_size', 10)
+            
+            # Validate page_size
+            try:
+                page_size = int(page_size)
+                if page_size <= 0:
+                    page_size = 10
+                if page_size > 100:  # Limit max page size
+                    page_size = 100
+            except ValueError:
+                page_size = 10
+            
+            # Get all students
+            students = StudentDetails.objects.all().order_by('id')
+            
+            # Create paginator
+            paginator = Paginator(students, page_size)
+            
+            try:
+                # Get requested page
+                students_page = paginator.page(page_number)
+            except PageNotAnInteger:
+                # If page is not an integer, deliver first page
+                students_page = paginator.page(1)
+            except EmptyPage:
+                # If page is out of range, deliver last page
+                students_page = paginator.page(paginator.num_pages)
+            
+            # Serialize the page data
+            serializer = StudentDetailsSerializer(students_page, many=True)
+            
+            # Return response with pagination metadata
+            return Response({
+                'count': paginator.count,
+                'total_pages': paginator.num_pages,
+                'current_page': students_page.number,
+                'page_size': page_size,
+                'has_next': students_page.has_next(),
+                'has_previous': students_page.has_previous(),
+                'next_page_number': students_page.next_page_number() if students_page.has_next() else None,
+                'previous_page_number': students_page.previous_page_number() if students_page.has_previous() else None,
+                'results': serializer.data
+            })
 
     def post(self, request):
         serializer = StudentDetailsSerializer(data=request.data)
@@ -259,8 +302,6 @@ class CheckSessionView(APIView):
         return Response({
             'authenticated': False
         }, status=401)
-
-
 
 def signup_page(request):
     return render(request, 'signup.html')

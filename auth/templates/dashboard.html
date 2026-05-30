@@ -172,6 +172,31 @@
             display: block;
         }
 
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+        }
+
+        .pagination button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .pagination button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
@@ -248,10 +273,26 @@
                 </tbody>
             </table>
         </div>
+
+        <div class="pagination" id="pagination">
+            <button onclick="loadStudents(1)" id="firstBtn" disabled>First</button>
+            <button onclick="loadStudents(currentPage - 1)" id="prevBtn" disabled>Previous</button>
+            <span id="pageInfo">Page 1 of 1</span>
+            <button onclick="loadStudents(currentPage + 1)" id="nextBtn" disabled>Next</button>
+            <button onclick="loadStudents(totalPages)" id="lastBtn" disabled>Last</button>
+            <select id="pageSize" onchange="changePageSize()" style="margin-left: 10px; padding: 5px;">
+                <option value="5">5 per page</option>
+                <option value="10" selected>10 per page</option>
+                <option value="20">20 per page</option>
+                <option value="50">50 per page</option>
+            </select>
+        </div>
     </div>
 
     <script>
-        let editingId = null;
+        let currentPage = 1;
+        let totalPages = 1;
+        let pageSize = 10;
 
         // Page load par check session
         window.addEventListener('DOMContentLoaded', function() {
@@ -292,9 +333,11 @@
             }
         }
 
-        async function loadStudents() {
+        async function loadStudents(page = 1) {
+            currentPage = page;
+            
             try {
-                const response = await fetch('/api/users/students/', {
+                const response = await fetch(`/api/users/students/?page=${page}&page_size=${pageSize}`, {
                     method: 'GET',
                     credentials: 'same-origin',
                     headers: {
@@ -303,8 +346,22 @@
                 });
                 
                 if (response.ok) {
-                    const students = await response.json();
-                    displayStudents(students);
+                    const data = await response.json();
+                    console.log('API Response:', data); // Debug log
+                    
+                    // Update pagination info
+                    totalPages = data.total_pages;
+                    currentPage = data.current_page;
+                    
+                    // Update pagination buttons
+                    document.getElementById('firstBtn').disabled = currentPage === 1;
+                    document.getElementById('prevBtn').disabled = currentPage === 1;
+                    document.getElementById('nextBtn').disabled = currentPage === totalPages || totalPages === 0;
+                    document.getElementById('lastBtn').disabled = currentPage === totalPages || totalPages === 0;
+                    document.getElementById('pageInfo').innerText = totalPages === 0 ? 'Page 0 of 0' : `Page ${currentPage} of ${totalPages}`;
+                    
+                    // Display students (data.results contains the array)
+                    displayStudents(data.results || []);
                 } else if (response.status === 401) {
                     window.location.href = '/api/users/login-page/';
                 } else {
@@ -320,7 +377,7 @@
             const tbody = document.getElementById('studentsList');
             tbody.innerHTML = '';
             
-            if (students.length === 0) {
+            if (!students || students.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No students found. Add your first student!</td></tr>';
                 return;
             }
@@ -348,6 +405,13 @@
                 actionsCell.appendChild(deleteBtn);
             });
         }
+
+        function changePageSize() {
+            pageSize = parseInt(document.getElementById('pageSize').value);
+            loadStudents(1);
+        }
+
+        let editingId = null;
 
         function saveStudent() {
             const studentData = {
@@ -393,7 +457,7 @@
                     document.getElementById('studentForm').reset();
                     editingId = null;
                     document.getElementById('cancelEditBtn').style.display = 'none';
-                    loadStudents();
+                    loadStudents(currentPage);
                 } else {
                     const error = await response.json();
                     showMessage(error.error || 'Failed to save student', 'error');
@@ -440,7 +504,7 @@
                     
                     if (response.ok) {
                         showMessage('Student deleted successfully!', 'success');
-                        loadStudents();
+                        loadStudents(currentPage);
                     } else {
                         const error = await response.json();
                         showMessage(error.error || 'Failed to delete student', 'error');
